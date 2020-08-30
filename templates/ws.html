@@ -8,15 +8,47 @@
     <script src="{% static 'celery_progress/websockets.js' %}"></script>
 </head>
 <body>
-    <div class='progress-wrapper'>
-        <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+    {% for _ in task_ids %}
+    <div class="message-content">
+        <div id="progress-bar-message-{{ forloop.counter0 }}">Waiting for progress to start...</div>
     </div>
-    <div id="progress-bar-message">Waiting for progress to start...</div>
-    <div id="celery-result"></div>
+    <div class="message-content">
+        <div id='progress-bar-{{ forloop.counter0 }}' class='progress-bar'>&nbsp;</div>
+    </div>
+    {% endfor %}
     <script>
+        {% for task_id in task_ids %}const progressUrl{{ forloop.counter0 }} = "/ws/progress/{{ task_id }}/";
+        {% endfor %}
         document.addEventListener("DOMContentLoaded", function () {
-            var progressUrl = "/ws/progress/{{ task_id }}/";
-            CeleryWebSocketProgressBar.initProgressBar(progressUrl);
+            const bars = [
+                {% for enum in task_ids %}{bar: CeleryWebSocketProgressBar, progressUrl: progressUrl{{forloop.counter0}}, message: `{{ task_id }}`, id: {{ forloop.counter0 }}},
+                {% endfor %}];
+
+            let initProgressBar = function (bar, progressUrl, id, message, callback) {
+                bar.initProgressBar(progressUrl, {
+                    progressBarId: `progress-bar-${id}`,
+                    progressBarMessageId: `progress-bar-message-${id}`,
+                    onSuccess: function (progressBarElement, progressBarMessageElement) {
+                        progressBarElement.style.backgroundColor = '#76ce60';
+                        progressBarMessageElement.innerHTML = "Success!";
+                        callback();
+                    },
+                });
+            };
+            function startProgressBars(bars) {
+                return new Promise(resolve => {
+                    if (bars.length === 1) {
+                        initProgressBar(bars[0].bar, bars[0].progressUrl, bars[0].id, bars[0].message, () => {})
+                    } else {
+                    const bar = bars.shift();
+                    initProgressBar(bar.bar, bar.progressUrl, bar.id, bar.message, () => {
+                        startProgressBars(bars).then(resolve)
+                  })
+                }
+              })
+            }
+
+            startProgressBars(bars);
         });
     </script>
 </body>
