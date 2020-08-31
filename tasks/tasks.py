@@ -20,5 +20,5 @@ def ws_error_task(self, *args, number):
     for i in range(number):
         time.sleep(.01)
         progress_recorder.set_progress(i+1, number)
-    return random()*1000
+    return int(random()*10)
 
